@@ -219,19 +219,19 @@ int IonController::allocate(alloc_data& data, int usage)
             ionFlags |= ION_SECURE;
         } else {
             // for targets/OEMs which do not need HW level protection
-            // do not set ion secure flag & MM heap. Fallback to IOMMU heap.
-            ionFlags |= ION_HEAP(ION_IOMMU_HEAP_ID);
+            // do not set ion secure flag & MM heap. Fallback to SYSTEM heap.
+            ionFlags |= ION_HEAP(ION_SYSTEM_HEAP_ID);
         }
     } else
 #endif
        if(usage & GRALLOC_USAGE_PRIVATE_MM_HEAP) {
 #ifdef SECURE_MM_HEAP
         //MM Heap is exclusively a secure heap.
-        //If it is used for non secure cases, fallback to IOMMU heap
+        //If it is used for non secure cases, fallback to SYSTEM heap
         ALOGW("GRALLOC_USAGE_PRIVATE_MM_HEAP \
                                 cannot be used as an insecure heap!\
-                                trying to use IOMMU instead !!");
-        ionFlags |= ION_HEAP(ION_IOMMU_HEAP_ID);
+                                trying to use SYSTEM instead !!");
+        ionFlags |= ION_HEAP(ION_SYSTEM_HEAP_ID);
 #else
         ionFlags |= ION_HEAP(ION_CP_MM_HEAP_ID);
 #endif
