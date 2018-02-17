@@ -182,6 +182,7 @@ void MDPComp::setMDPCompLayerFlags(hwc_context_t *ctx,
  */
 bool MDPComp::setupBasePipe(hwc_context_t *ctx) {
     const int dpy = HWC_DISPLAY_PRIMARY;
+    int fb_stride = ctx->dpyAttr[dpy].stride;
     int fb_width = ctx->dpyAttr[dpy].xres;
     int fb_height = ctx->dpyAttr[dpy].yres;
     int fb_fd = ctx->dpyAttr[dpy].fd;
@@ -296,6 +297,7 @@ bool MDPComp::isSupportedForMDPComp(hwc_context_t *ctx, hwc_layer_1_t* layer) {
 }
 
 bool MDPComp::isValidDimension(hwc_context_t *ctx, hwc_layer_1_t *layer) {
+    const int dpy = HWC_DISPLAY_PRIMARY;
     private_handle_t *hnd = (private_handle_t *)layer->handle;
 
     if(!hnd) {
@@ -734,25 +736,6 @@ bool MDPComp::batchLayers(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
     return true;
 }
 
-
-int MDPComp::checkOpaqueSurface(hwc_context_t *ctx,
-    hwc_display_contents_1_t* list) {
-    int opaqueSurfaceLayerID = 0;
-    int numAppLayers = ctx->listStats[mDpy].numAppLayers;
-
-    for (int i = numAppLayers-1; i >= 0; i--) {
-        hwc_layer_1_t* layer = &list->hwLayers[i];
-        if (layer->handle) {
-            private_handle_t *hnd = (private_handle_t *)layer->handle;
-            if (hnd->flags & private_handle_t::PRIV_FLAGS_OPAQUE_SURFACE) {
-                opaqueSurfaceLayerID = i;
-                break;
-            }
-        }
-    }
-    return opaqueSurfaceLayerID;
-}
-
 void MDPComp::updateLayerCache(hwc_context_t* ctx,
         hwc_display_contents_1_t* list) {
     int numAppLayers = ctx->listStats[mDpy].numAppLayers;
@@ -900,18 +883,6 @@ int MDPComp::prepare(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
         return -1;
     }
 
-    //Check if there is opaque surface in the list
-    int opaqueSurfaceLayerID = checkOpaqueSurface(ctx, list);
-    if (opaqueSurfaceLayerID) {
-        //Need to set all layers below it to Overlay
-        for (int i = 0; i < opaqueSurfaceLayerID; i++) {
-            mCurrentFrame.isFBComposed[i] = false;
-        }
-        setMDPCompLayerFlags(ctx, list);
-        ALOGD_IF(isDebug(), "%s: Found Opaque Surface for display=%d, layer=%d",
-                __FUNCTION__, mDpy, opaqueSurfaceLayerID);
-    }
-
     //Hard conditions, if not met, cannot do MDP comp
     if(!isFrameDoable(ctx, list)) {
         ALOGD_IF( isDebug(),"%s: MDP Comp not possible for this frame",
@@ -1050,6 +1021,8 @@ bool MDPCompLowRes::allocLayerPipes(hwc_context_t *ctx,
             if(mCurrentFrame.isFBComposed[nYuvIndex])
                 continue;
 
+            hwc_layer_1_t* layer = &list->hwLayers[nYuvIndex];
+
             int mdpIndex = mCurrentFrame.layerToMDP[nYuvIndex];
 
             PipeLayerPair& info = mCurrentFrame.mdpToLayer[mdpIndex];
@@ -1122,7 +1095,6 @@ bool MDPCompLowRes::draw(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
     LayerProp *layerProp = ctx->layerProp[mDpy];
 
     int numHwLayers = ctx->listStats[mDpy].numAppLayers;
-    int opaqueSurfaceLayerID = checkOpaqueSurface(ctx, list);
     for(int i = 0; i < numHwLayers && mCurrentFrame.mdpCount; i++ )
     {
         if(mCurrentFrame.isFBComposed[i]) continue;
@@ -1132,13 +1104,6 @@ bool MDPCompLowRes::draw(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
         if(!hnd) {
             ALOGE("%s handle null", __FUNCTION__);
             return false;
-        }
-
-        if (i < opaqueSurfaceLayerID) {
-            //Skip the layer which is lower than then opaque surface layer.
-            ALOGD_IF(isDebug(), "%s,%d: Display=%d, Skip layer=%d under opaque"\
-            " layer=%d", __FUNCTION__, __LINE__, mDpy, i, opaqueSurfaceLayerID);
-            continue;
         }
 
         int mdpIndex = mCurrentFrame.layerToMDP[i];
@@ -1260,8 +1225,7 @@ bool MDPCompHighRes::allocLayerPipes(hwc_context_t *ctx,
         if(isYuvBuffer(hnd))
             continue;
 
-        int mdpIndex = mCurrentFrame.layerToMDP[index];
-        PipeLayerPair& info = mCurrentFrame.mdpToLayer[mdpIndex];
+        PipeLayerPair& info = mCurrentFrame.mdpToLayer[index];
         info.pipeInfo = new MdpPipeInfoHighRes;
         info.rot = NULL;
         MdpPipeInfoHighRes& pipe_info = *(MdpPipeInfoHighRes*)info.pipeInfo;
@@ -1326,7 +1290,6 @@ bool MDPCompHighRes::draw(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
     LayerProp *layerProp = ctx->layerProp[mDpy];
 
     int numHwLayers = ctx->listStats[mDpy].numAppLayers;
-    int opaqueSurfaceLayerID = checkOpaqueSurface(ctx, list);
     for(int i = 0; i < numHwLayers && mCurrentFrame.mdpCount; i++ )
     {
         if(mCurrentFrame.isFBComposed[i]) continue;
@@ -1336,13 +1299,6 @@ bool MDPCompHighRes::draw(hwc_context_t *ctx, hwc_display_contents_1_t* list) {
         if(!hnd) {
             ALOGE("%s handle null", __FUNCTION__);
             return false;
-        }
-
-        if (i < opaqueSurfaceLayerID) {
-            //Skip the layer which is lower than then opaque surface layer.
-            ALOGD_IF(isDebug(), "%s,%d: Display=%d, Skip layer=%d under opaque"\
-            " layer=%d", __FUNCTION__, __LINE__, mDpy, i, opaqueSurfaceLayerID);
-            continue;
         }
 
         if(!(layerProp[i].mFlags & HWC_MDPCOMP)) {
