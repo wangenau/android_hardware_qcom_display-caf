@@ -941,8 +941,6 @@ void calculate_crop_rects(hwc_rect_t& crop, hwc_rect_t& dst,
     const int& sci_t = scissor.top;
     const int& sci_r = scissor.right;
     const int& sci_b = scissor.bottom;
-    int sci_w = abs(sci_r - sci_l);
-    int sci_h = abs(sci_b - sci_t);
 
     double leftCutRatio = 0.0, rightCutRatio = 0.0, topCutRatio = 0.0,
             bottomCutRatio = 0.0;
@@ -1125,7 +1123,6 @@ int hwc_sync(hwc_context_t *ctx, hwc_display_contents_1_t* list, int dpy,
     int retireFd = -1;
 #endif
     int fbFd = -1;
-    int rotFd = -1;
     bool swapzero = false;
     int mdpVersion = qdutils::MDPVersion::getInstance().getMDPVersion();
     LayerProp *layerProp = ctx->layerProp[dpy];

@@ -48,7 +48,6 @@ gpu_context_t::gpu_context_t(const private_module_t* module,
     allocSize      = gralloc_alloc_size;
 #endif
     free           = gralloc_free;
-
 }
 
 int gpu_context_t::gralloc_alloc_buffer(size_t size, int usage,
