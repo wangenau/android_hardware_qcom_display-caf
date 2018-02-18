@@ -34,7 +34,6 @@
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
-#include <linux/android_pmem.h>
 
 #include <gralloc_priv.h>
 #include "gr.h"
@@ -325,7 +324,7 @@ int gralloc_perform(struct gralloc_module_t const* module,
                 int format = va_arg(args, int);
 
                 native_handle_t** handle = va_arg(args, native_handle_t**);
-                int memoryFlags = va_arg(args, int);
+                int memoryFlags __attribute__((__unused__)) = va_arg(args, int);
                 private_handle_t* hnd = (private_handle_t*)native_handle_create(
                     private_handle_t::sNumFds, private_handle_t::sNumInts);
                 hnd->magic = private_handle_t::sMagic;

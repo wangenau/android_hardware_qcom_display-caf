@@ -74,7 +74,6 @@ static int fb_setSwapInterval(struct framebuffer_device_t* dev,
         interval = property_interval;
 #endif
 
-    fb_context_t* ctx = (fb_context_t*)dev;
     private_module_t* m = reinterpret_cast<private_module_t*>(
         dev->common.module);
     if (interval < dev->minSwapInterval || interval > dev->maxSwapInterval)
@@ -311,7 +310,6 @@ int mapFrameBufferLocked(struct private_module_t* module)
      * map the framebuffer
      */
 
-    int err;
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
     //adreno needs page aligned offsets. Align the fbsize to pagesize.
